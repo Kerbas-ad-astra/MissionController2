@@ -3,10 +3,7 @@
 namespace MissionControllerEC
 {
     public static class SaveInfo 
-    {       
-        public static double TotalSpentKerbals = 0;
-        public static double TotalSpentOnRocketTest = 0;
-        public static double TotalSpentKerbalDeaths = 0;
+    {             
         public static bool SatContractReady = false;
         public static string AgenaTargetVesselID = "none";
         public static string AgenaTargetVesselName = "none";
@@ -54,17 +51,26 @@ namespace MissionControllerEC
         public static bool NoLanderResearchContracts = false;
         public static bool NoOrbitalResearchContracts = false;
         public static bool NoRepairContracts = false;
+        public static bool all_Historical_Contracts_Off = false;
+        public static bool Duna_NonHistorical_Contracts_Off = false; 
 
         public static bool RepairContractOn = false;
         public static bool RepairStationContract = false;
-        public static bool CivilianLowOrbit = false;
-        public static bool CivilianLanding = false;
-        public static bool CivilianStationExpedition = false;
         public static int SatelliteTypeChoice = 0;
 
-        public static bool CivilianApPod = false;
-        public static string CivilianApName = "none";
-
         public static bool spResourceSet = false;
+
+        public static int tirosCurrentNumber = 1;
+        public static int marinerCurrentNumber = 1;
+        public static int apolloCurrentNumber = 1;
+        public static int apolloDunaCurrentNumber = 1;
+        public static bool apolloDunaStation = false;
+
+        public static double apolloLandingLat = 0;
+        public static double apolloLandingLon = 0;
+
+        public static string SatelliteContractType = "none";
+        public static float SatelliteContractFrequency = -1;
+        public static float SatelliteContractModule = 0;
     }   
 }

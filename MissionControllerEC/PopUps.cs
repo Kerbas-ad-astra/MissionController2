@@ -22,12 +22,12 @@ namespace MissionControllerEC
             {
                 if (GUILayout.Button("Revert To VAB Pay " + revertcost + " Funds"))
                 {
-                    FlightDriver.RevertToPrelaunch(GameScenes.EDITOR);
+                    FlightDriver.RevertToPrelaunch(EditorFacility.VAB);
                     MCE_ScenarioStartup.RevertHalt = true;
                 }
                 if (GUILayout.Button("Revert To SPH Pay " + revertcost + " Funds"))
                 {
-                    FlightDriver.RevertToPrelaunch(GameScenes.SPH);
+                    FlightDriver.RevertToPrelaunch(EditorFacility.SPH);
                     MCE_ScenarioStartup.RevertHalt = true;
                 }
                 if (GUILayout.Button("Exit Without Reverting"))
@@ -43,7 +43,6 @@ namespace MissionControllerEC
                     if (HighLogic.CurrentGame.Mode == Game.Modes.CAREER)
                     {
                         Funding.Instance.AddFunds(-revertcost, TransactionReasons.Any);
-                        SaveInfo.TotalSpentOnRocketTest += revertcost;
                     }
                     MCE_ScenarioStartup.RevertHalt = false;
                 }

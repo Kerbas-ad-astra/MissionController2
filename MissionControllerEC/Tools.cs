@@ -122,11 +122,32 @@ namespace MissionControllerEC
                 return "0s";
             }
         }
+
+        public static double getBodyAltitude(CelestialBody body)
+        {
+            double atmosphere = 0.0;
+
+            if (!body.atmosphere)
+            {
+                atmosphere = body.Radius + 40000;
+                Debug.Log("Body radius is " + body.Radius);
+            }
+            else
+            {
+                atmosphere = body.atmosphereDepth;
+
+                Debug.Log("Body and AtmoshpereDepth is " + atmosphere);
+            }
+
+            return Math.Round(atmosphere);
+        }
+
         public static void ObitalPeriodHelper(Vessel v)
         {            
             ScreenMessages.PostScreenMessage("Current Orbital Period is: " + Tools.formatTime(FlightGlobals.ActiveVessel.orbit.period) + "\n" +
-                " ApA Is: " + (int)v.orbit.ApA + " PeA Is: "+ (int)v.orbit.PeA + "\n" +
-                "Current eccentricity is: " + FlightGlobals.ActiveVessel.orbit.eccentricity.ToString("F2"), .001f);
+                "ApA Is: " + (int)v.orbit.ApA + " PeA Is: "+ (int)v.orbit.PeA + "\n" +
+                "Current eccentricity is: " + FlightGlobals.ActiveVessel.orbit.eccentricity.ToString("F2") +"\n" +
+            "Current Biome Is: " + FlightGlobals.ActiveVessel.mainBody.BiomeMap.GetAtt(FlightGlobals.ActiveVessel.latitude * Math.PI / 180d, FlightGlobals.ActiveVessel.longitude * Math.PI / 180d), .001f);
         }
 
         public static void ContractLoadCheck<t>(ConfigNode node, ref t value, t backupDefault, string valueName, string savedFile)
@@ -139,8 +160,8 @@ namespace MissionControllerEC
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("MCE Exeption failed to load contract saved value " + valueName + " " + savedFile + "Backup Loaded");
-                Debug.LogWarning(ex.Message + " " + ex.StackTrace);
+                //Debug.LogWarning("MCE Exeption failed to load contract saved value " + valueName + " " + savedFile + "Backup Loaded: " + backupDefault + " Node Name: " + node);
+                //Debug.LogWarning(ex.Message + " " + ex.StackTrace);
                 value = backupDefault;
 
             }
@@ -208,7 +229,6 @@ namespace MissionControllerEC
         }
         public static void ContractLoadCheck<t>(ConfigNode node, ref t value,t backupDefault,CelestialBody valueName, string savedFile)
         {
-            int i = 0;
             try
             {
                 CelestialBody cb = null;

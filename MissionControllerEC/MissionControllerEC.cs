@@ -1,5 +1,6 @@
 ﻿
 using System;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using System.Linq;
 using MissionControllerEC;
@@ -17,9 +18,6 @@ namespace MissionControllerEC
         public static AssemblyName assemblyName;
         public static String versionCode;
         public static String mainWindowTitle;
-
-        public static bool DifficultyLevelCheck = false;
-        public static float cst;
 
         public static Rect PopUpWindowPosition3;
         public static bool ShowPopUpWindow3;
@@ -42,7 +40,6 @@ namespace MissionControllerEC
 
         public static GUIStyle StyleWhite, StyleBold, styleBoxWhite, styleBlue, styleBlueBold, styleGreenBold;
 
-
         public static bool RevertHalt = false;
 
         // Special thanks to Magico13 Of Kerbal Construction Time for showing me how to Get Scenario Persistance.
@@ -56,7 +53,7 @@ namespace MissionControllerEC
             {
                 try
                 {
-                    HighLogic.CurrentGame.AddProtoScenarioModule(typeof(MissionControllerData), new GameScenes[] { GameScenes.FLIGHT, GameScenes.SPACECENTER, GameScenes.EDITOR, GameScenes.SPH, GameScenes.TRACKSTATION });
+                    HighLogic.CurrentGame.AddProtoScenarioModule(typeof(MissionControllerData), new GameScenes[] { GameScenes.FLIGHT, GameScenes.SPACECENTER, GameScenes.EDITOR, GameScenes.TRACKSTATION });
                     Debug.LogWarning("[MCE] Adding InternalModule scenario to game '" + HighLogic.CurrentGame.Title + "'");
                     // the game will add this scenario to the appropriate persistent file on save from now on
                 }
@@ -77,9 +74,7 @@ namespace MissionControllerEC
                 if (!scenario.targetScenes.Contains(GameScenes.FLIGHT))
                     scenario.targetScenes.Add(GameScenes.FLIGHT);
                 if (!scenario.targetScenes.Contains(GameScenes.EDITOR))
-                    scenario.targetScenes.Add(GameScenes.EDITOR);
-                if (!scenario.targetScenes.Contains(GameScenes.SPH))
-                    scenario.targetScenes.Add(GameScenes.SPH);
+                    scenario.targetScenes.Add(GameScenes.EDITOR);               
                 if (!scenario.targetScenes.Contains(GameScenes.TRACKSTATION))
                     scenario.targetScenes.Add(GameScenes.TRACKSTATION);
 
@@ -142,7 +137,7 @@ namespace MissionControllerEC
             //Debug.Log("OnAwake in " + HighLogic.LoadedScene);
 
 
-            if (HighLogic.LoadedScene == GameScenes.SPACECENTER || HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.EDITOR || HighLogic.LoadedScene == GameScenes.SPH)
+            if (HighLogic.LoadedScene == GameScenes.SPACECENTER || HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.EDITOR)
             {
                 //Debug.Log("Adding MissionController Child");
                 var c = gameObject.AddComponent<MissionControllerEC>();
@@ -183,10 +178,12 @@ namespace MissionControllerEC
         private static Texture2D texture;
         private static Texture2D texture2;
         private ApplicationLauncherButton MCEButton;
-        private ApplicationLauncherButton EDMCEButton;
         private ApplicationLauncherButton MCERevert;
+        private string tirosNumber;
+        private string marinerNumber;
+        private string apolloNumber;
         
-        Settings settings = new Settings("Config.cfg");
+        Settings settings = new Settings("Config.cfg");        
 
         public void Awake()
         {
@@ -195,27 +192,20 @@ namespace MissionControllerEC
             loadFiles();
             CreateButtons();          
             GameEvents.Contract.onContractsLoaded.Add(this.onContractLoaded);
-            GameEvents.onCrewKilled.Add(this.chargeKerbalDeath);
-            GameEvents.onKerbalTypeChange.Add(this.hireKerbals);
             GameEvents.onGameSceneLoadRequested.Add(this.CheckRandomContractTypes);
             //Debug.Log("MCE Awake");
             getSupplyList(false);
-            LoadResourceDictionary();
         }    
                 
         public void Start()
         {                 
-            FlightglobalsIndexCheck();
-            
-            ActivateEVASpareParts();
+            DictCount = settings.SupplyResourceList.Count();           
         }            
                       
         void OnDestroy()
         {
             DestroyButtons();
             //Debug.Log("MCE OnDestroy");
-            GameEvents.onCrewKilled.Remove(this.chargeKerbalDeath);
-            GameEvents.onKerbalTypeChange.Remove(this.hireKerbals);
             GameEvents.Contract.onContractsLoaded.Remove(this.onContractLoaded);
             GameEvents.onGameSceneLoadRequested.Remove(this.CheckRandomContractTypes);
             //Debug.Log("Game All values removed for MCE");
@@ -233,7 +223,7 @@ namespace MissionControllerEC
             }
             if (MCE_ScenarioStartup.ShowfinanaceWindow)
             {
-                MCE_ScenarioStartup.FinanceWindowPosition = GUILayout.Window(981974, MCE_ScenarioStartup.FinanceWindowPosition, drawFinanceWind, "MCE Finances", GUILayout.MaxHeight(800), GUILayout.MaxWidth(400), GUILayout.MinHeight(250), GUILayout.MinWidth(390));
+                MCE_ScenarioStartup.FinanceWindowPosition = GUILayout.Window(981974, MCE_ScenarioStartup.FinanceWindowPosition, drawFinanceWind, "MCE Finances", GUILayout.MaxHeight(350), GUILayout.MaxWidth(400), GUILayout.MinHeight(250), GUILayout.MinWidth(390));
                 MCE_ScenarioStartup.FinanceWindowPosition.x = Mathf.Clamp(MCE_ScenarioStartup.FinanceWindowPosition.x, 0, Screen.width - MCE_ScenarioStartup.FinanceWindowPosition.width);
                 MCE_ScenarioStartup.FinanceWindowPosition.y = Mathf.Clamp(MCE_ScenarioStartup.FinanceWindowPosition.y, 0, Screen.height - MCE_ScenarioStartup.FinanceWindowPosition.height);
             }
@@ -271,7 +261,7 @@ namespace MissionControllerEC
 
             if (GUILayout.Button("Add Money"))
             {
-                Funding.Instance.AddFunds(1000,TransactionReasons.Cheating);
+                Funding.Instance.AddFunds(500000,TransactionReasons.Cheating);
             }
 
             GUILayout.Label("Current Science: " + ResearchAndDevelopment.Instance.Science);
@@ -290,6 +280,17 @@ namespace MissionControllerEC
             {
                 SaveInfo.skyLabName = FlightGlobals.ActiveVessel.vesselName;
                 SaveInfo.skyLabVesID = FlightGlobals.ActiveVessel.id.ToString();
+            }
+
+            if (GUILayout.Button("Set Landing Site for Apollo Missions(Flight)"))
+            {
+                GetLatandLonDefault(FlightGlobals.ActiveVessel);
+                Debug.Log("Apollo Landing Lat: " + SaveInfo.apolloLandingLat + " Apollo Landing Lon: " + SaveInfo.apolloLandingLon);
+            }
+
+            if (GUILayout.Button("Debug Landing Site For Apollo(Flight)"))
+            {
+                Debug.Log("Current Lat + Lon: " + FlightGlobals.ActiveVessel.latitude + " " + FlightGlobals.ActiveVessel.longitude + " Current Saved Values Lat + Lon " + SaveInfo.apolloLandingLat + " " + SaveInfo.apolloLandingLon);
             }
  
             if (GUILayout.Button("Set Agena1 Bool False"))
@@ -326,10 +327,42 @@ namespace MissionControllerEC
             {
                 SaveInfo.RepairContractOn = true; SaveInfo.RepairStationContract = true;
             }
-            if (GUILayout.Button("Turn On All Civilian Contracts At Once"))
+            
+            if (GUILayout.Button("Test EVA Type Kerbal"))
             {
-                SaveInfo.CivilianLowOrbit = true; SaveInfo.CivilianLanding = true; SaveInfo.CivilianStationExpedition = true;
+                GetEvaTypeKerbal();
             }
+            if (GUILayout.Button("Set Vessel Current Launch Time"))
+            {
+                SetVesselLaunchCurrentTime();
+            }
+            GUILayout.BeginHorizontal();
+            GUILayout.Box("Tiros Number 1-3", MCE_ScenarioStartup.StyleBold, GUILayout.Width(300));
+            tirosNumber = SaveInfo.tirosCurrentNumber.ToString();
+            tirosNumber= Regex.Replace(GUILayout.TextField(tirosNumber), "[^.0-9]", "");
+            SaveInfo.tirosCurrentNumber = int.Parse(tirosNumber);
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Box("Mariner Number 1-4", MCE_ScenarioStartup.StyleBold, GUILayout.Width(300));
+            marinerNumber = SaveInfo.marinerCurrentNumber.ToString();
+            marinerNumber = Regex.Replace(GUILayout.TextField(marinerNumber), "[^.0-9]", "");
+            SaveInfo.marinerCurrentNumber = int.Parse(marinerNumber);
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Box("Apollo Number 1-6", MCE_ScenarioStartup.StyleBold, GUILayout.Width(300));
+            apolloNumber = SaveInfo.apolloCurrentNumber.ToString();
+            apolloNumber = Regex.Replace(GUILayout.TextField(apolloNumber), "[^.0-9]", "");
+            SaveInfo.apolloCurrentNumber = int.Parse(apolloNumber);
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Box("Apollo-Duna Number 1-9", MCE_ScenarioStartup.StyleBold, GUILayout.Width(300));
+            apolloNumber = SaveInfo.apolloDunaCurrentNumber.ToString();
+            apolloNumber = Regex.Replace(GUILayout.TextField(apolloNumber), "[^.0-9]", "");
+            SaveInfo.apolloDunaCurrentNumber = int.Parse(apolloNumber);
+            GUILayout.EndHorizontal();
                           
             GUILayout.EndVertical();
             if (GUILayout.Button("Exit Save Settings"))
@@ -346,10 +379,7 @@ namespace MissionControllerEC
     }
                
     public class MCE_DataStorage : ConfigNodeStorage
-    {
-        [Persistent]public double TotalSpentKerbals = 0;
-        [Persistent]public double TotalSpentRockets = 0;
-        [Persistent]public double TotalSpentDeaths = 0;
+    {        
         [Persistent]public bool ComSatOn = false;
         [Persistent]public string agenaTargetVesselID = "none";
         [Persistent]public string agenaTargetVesselName = "none";
@@ -394,6 +424,8 @@ namespace MissionControllerEC
         [Persistent]public bool noSatelliteContract = false;
         [Persistent]public bool noRepairContract = false;
         [Persistent]public bool noOrbitalPeriodContract = false;
+        [Persistent]public bool noHistoricContracts = false;
+        [Persistent]public bool noCivilianContracts = false;
 
         [Persistent]internal bool com_Sat_Start_Building = false;
         [Persistent]internal double com_Sat_maxOrbP = 10860;
@@ -402,12 +434,25 @@ namespace MissionControllerEC
         [Persistent]internal int com_Sat_bodyNumber = 1;
         [Persistent]internal bool hardcoreOn = true;
 
+        [Persistent]internal int tirosNumber = 1;
+        [Persistent]internal int marinerNumber = 1;
+        [Persistent]internal int apolloNumber = 1;
+        [Persistent]internal int apolloDunaNumber = 1;
+        [Persistent]internal bool apolloStationStatus = false;
+
+        [Persistent]internal double apolldunLat = 1;
+        [Persistent]internal double apolldunLon = 1;
+      
         public override void OnDecodeFromConfigNode()
-        {
-            SaveInfo.Hardcore_Vessel_Must_Survive = hardcoreOn;
-            SaveInfo.TotalSpentKerbals = TotalSpentKerbals;
-            SaveInfo.TotalSpentKerbalDeaths = TotalSpentDeaths;
-            SaveInfo.TotalSpentOnRocketTest = TotalSpentRockets;
+        {           
+            SaveInfo.apolloDunaStation = apolloStationStatus;
+            SaveInfo.apolloLandingLat = apolldunLat;
+            SaveInfo.apolloLandingLon = apolldunLon;
+            SaveInfo.tirosCurrentNumber = tirosNumber;
+            SaveInfo.marinerCurrentNumber = marinerNumber;
+            SaveInfo.apolloCurrentNumber = apolloNumber;
+            SaveInfo.apolloDunaCurrentNumber = apolloDunaNumber;
+            SaveInfo.Hardcore_Vessel_Must_Survive = hardcoreOn;            
             SaveInfo.SatContractReady = ComSatOn;
             SaveInfo.AgenaTargetVesselID = agenaTargetVesselID;
             SaveInfo.AgenaTargetVesselName = agenaTargetVesselName;
@@ -448,24 +493,26 @@ namespace MissionControllerEC
             SaveInfo.SupplyBodyIDX = supplybodyIDX;
             SaveInfo.supplyContractOn = supplyContractOn;
             SaveInfo.supplyAmount = supplyResAmount;
-
-            SaveInfo.CivilianApPod = apCivilianPod;
-            SaveInfo.CivilianApName = apCivilianName;
-
+           
             SaveInfo.NoOrbitalResearchContracts = noOrbitalContract;
             SaveInfo.NoLanderResearchContracts = noLandingContract;
             SaveInfo.NoSatelliteContracts = noSatelliteContract;
             SaveInfo.NoRepairContracts = noRepairContract;
             SaveInfo.NoOrbitalPeriodcontracts = noOrbitalPeriodContract;
+            SaveInfo.all_Historical_Contracts_Off = noHistoricContracts;           
 
         }
 
         public override void OnEncodeToConfigNode()
-        {
-            hardcoreOn = SaveInfo.Hardcore_Vessel_Must_Survive;
-            TotalSpentKerbals = SaveInfo.TotalSpentKerbals;
-            TotalSpentRockets = SaveInfo.TotalSpentOnRocketTest;
-            TotalSpentDeaths = SaveInfo.TotalSpentKerbalDeaths;
+        {         
+            apolloStationStatus = SaveInfo.apolloDunaStation;
+            apolldunLat = SaveInfo.apolloLandingLat;
+            apolldunLon = SaveInfo.apolloLandingLon;
+            tirosNumber = SaveInfo.tirosCurrentNumber;
+            marinerNumber = SaveInfo.marinerCurrentNumber;
+            apolloNumber = SaveInfo.apolloCurrentNumber;
+            apolloDunaNumber = SaveInfo.apolloDunaCurrentNumber;
+            hardcoreOn = SaveInfo.Hardcore_Vessel_Must_Survive;           
             ComSatOn = SaveInfo.SatContractReady;
             agenaTargetVesselID = SaveInfo.AgenaTargetVesselID;
             agenaTargetVesselName = SaveInfo.AgenaTargetVesselName;
@@ -506,16 +553,13 @@ namespace MissionControllerEC
             supplybodyIDX = SaveInfo.SupplyBodyIDX;
             supplyContractOn = SaveInfo.supplyContractOn;
             supplyResAmount = SaveInfo.supplyAmount;
-
-            apCivilianPod = SaveInfo.CivilianApPod;
-            apCivilianName = SaveInfo.CivilianApName;
-
+          
             noOrbitalContract = SaveInfo.NoOrbitalResearchContracts;
             noLandingContract = SaveInfo.NoLanderResearchContracts;
             noSatelliteContract = SaveInfo.NoSatelliteContracts;
             noRepairContract = SaveInfo.NoRepairContracts;
             noOrbitalPeriodContract = SaveInfo.NoOrbitalPeriodcontracts;
-
+            noHistoricContracts = SaveInfo.all_Historical_Contracts_Off;            
         }
     
 
